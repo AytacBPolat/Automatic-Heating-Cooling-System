@@ -56,7 +56,7 @@ void apply_state(SystemState st) {
 // Sıcaklığa göre anında geçiş
 void control_system() {
     float temp = read_temp();
-
+    //feature branch değişiklikleri
     if (current_state == HEATING_STATE) {
         if (temp >= TARGET_TEMP + HYSTERESIS) {
             current_state = COOLING_STATE;
