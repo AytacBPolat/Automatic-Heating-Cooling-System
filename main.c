@@ -15,8 +15,9 @@
 //Heating and Cooling Pins
 #define HEATER_PIN    BIT0
 #define FAN_PIN       BIT1
-#define TARGET_TEMP   30.0f
 #define HYSTERESIS    2.0f
+
+float TARGET_TEMP = 30.0f;
 
 typedef enum { HEATING_STATE, COOLING_STATE } SystemState;
 static SystemState current_state;
@@ -37,6 +38,19 @@ void setup() {
     // Start state: Both Pins High
     CLK_OUT |= CLK_PIN;
     DIO_OUT |= DIO_PIN;
+
+    //Increment/Decrement Pin
+    P2DIR &= ~(BIT3 | BIT4); // Pin 2.3 / 2.4
+    P2REN |= BIT3 | BIT4;
+    P2OUT |= BIT3 | BIT4;
+}
+
+void increase(){
+    TARGET_TEMP = TARGET_TEMP + 1.0f;
+}
+
+void decrease(){
+    TARGET_TEMP = TARGET_TEMP - 1.0f;
 }
 
 float read_temp() {
@@ -196,6 +210,28 @@ void TM1637_displayNumber(int num) {
     TM1637_sendCommand(0x88 | 0x07); // brightness = max (0x88 to 0x8F)
 }
 
+void TM1637_displayTempAndTarget(float target, int temp) {
+    TM1637_sendCommand(0x40); // set auto-increment mode
+    TM1637_start();
+    TM1637_writeByte(0xC0);   // set starting address to 0
+
+    int target_int = (int)target;
+    int t1 = (target_int / 10) % 10;  // onlar basamağı
+    int t2 = target_int % 10;         // birler basamağı
+
+    int c1 = (temp / 10) % 10;        // onlar basamağı
+    int c2 = temp % 10;               // birler basamağı
+
+    TM1637_writeByte(segData[t1]);
+    TM1637_writeByte(segData[t2]);
+    TM1637_writeByte(segData[c1]);
+    TM1637_writeByte(segData[c2]);
+
+    TM1637_stop();
+    TM1637_sendCommand(0x88 | 0x07); // brightness
+}
+
+
 void main(void) {
    setup();
    int i;
@@ -212,8 +248,16 @@ void main(void) {
     apply_state(current_state);
 
     while (1) {
+        if ((P2IN & BIT3) == 0) {
+            increase();
+            __delay_cycles(300000);
+        }
+        if ((P2IN & BIT4) == 0) {
+            decrease();
+            __delay_cycles(300000);
+        }
         int temperature = control_system();
-        TM1637_displayNumber(temperature);
+        TM1637_displayTempAndTarget(TARGET_TEMP, temperature);
         __delay_cycles(1000000); //wait for 1 sec.
     }
 }
